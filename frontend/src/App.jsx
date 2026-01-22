@@ -70,7 +70,6 @@ const BatchScans = () => {
   const batchInitialValues = {
     targetUrl: "http://juice-shop:3000",
     tool: "zap",
-    profile: "baseline",
     repetitions: 1,
     intervalSeconds: 2,
   };
@@ -280,28 +279,16 @@ const BatchScans = () => {
                 <Input placeholder="http://juice-shop:3000" />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col span={12}>
               <Form.Item
                 label="Инструмент"
                 name="tool"
                 rules={[{ required: true }]}
               >
                 <Select>
-                  <Select.Option value="zap">OWASP ZAP</Select.Option>
+                  <Select.Option value="zap">OWASP ZAP (Baseline)</Select.Option>
                   <Select.Option value="nikto">Nikto</Select.Option>
                   <Select.Option value="wapiti">Wapiti</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item
-                label="Профиль"
-                name="profile"
-                rules={[{ required: true }]}
-              >
-                <Select>
-                  <Select.Option value="baseline">Baseline</Select.Option>
-                  <Select.Option value="authenticated">Authenticated</Select.Option>
                 </Select>
               </Form.Item>
             </Col>
