@@ -289,6 +289,8 @@ const BatchScans = () => {
                   <Select.Option value="zap">OWASP ZAP (Baseline)</Select.Option>
                   <Select.Option value="nikto">Nikto</Select.Option>
                   <Select.Option value="wapiti">Wapiti</Select.Option>
+                  <Select.Option value="arachni">Arachni</Select.Option>
+                  <Select.Option value="w4af">w4af</Select.Option>
                 </Select>
               </Form.Item>
             </Col>

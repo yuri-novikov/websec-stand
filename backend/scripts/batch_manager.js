@@ -417,6 +417,14 @@ class BatchManager {
                 findings.push(...this.parseWapitiFindings(rawOutput));
                 break;
 
+            case 'arachni':
+                findings.push(...this.parseArachniFindings(rawOutput));
+                break;
+
+            case 'w4af':
+                findings.push(...this.parseW4afFindings(rawOutput));
+                break;
+
             default:
                 findings.push({
                     severity: 'INFO',
@@ -694,6 +702,185 @@ class BatchManager {
                     severity: severity,
                     title: 'Wapiti scan warning or error',
                     tool: 'wapiti',
+                    type: 'scan_issue',
+                    line: line.trim()
+                });
+            }
+        }
+
+        return findings;
+    }
+
+    /**
+     * Парсер для Arachni
+     */
+    parseArachniFindings(rawOutput) {
+        const findings = [];
+        const lines = rawOutput.split('\n');
+
+        for (const line of lines) {
+            // Основные уязвимости Arachni
+            if (line.includes('[~]') || line.includes('[+]')) {
+                let severity = 'MEDIUM';
+                let title = 'Arachni vulnerability detected';
+
+                // Определение типа уязвимости
+                if (line.includes('SQL Injection') || line.includes('SQLi')) {
+                    severity = 'HIGH';
+                    title = 'SQL Injection vulnerability';
+                } else if (line.includes('XSS') || line.includes('Cross Site Scripting')) {
+                    severity = 'HIGH';
+                    title = 'Cross-Site Scripting vulnerability';
+                } else if (line.includes('CSRF') || line.includes('Cross-Site Request Forgery')) {
+                    severity = 'MEDIUM';
+                    title = 'CSRF vulnerability';
+                } else if (line.includes('Path Traversal') || line.includes('Directory Traversal')) {
+                    severity = 'HIGH';
+                    title = 'Path Traversal vulnerability';
+                } else if (line.includes('Code Injection') || line.includes('Command Injection')) {
+                    severity = 'HIGH';
+                    title = 'Code/Command Injection vulnerability';
+                }
+
+                findings.push({
+                    severity: severity,
+                    title: title,
+                    tool: 'arachni',
+                    type: 'vulnerability',
+                    line: line.trim()
+                });
+            }
+
+            // Статистика сканирования
+            if (line.includes('Total issues') || line.includes('issues were detected')) {
+                const issuesMatch = line.match(/(\d+)\s+issues?\s+(?:were\s+)?detected/i);
+                if (issuesMatch) {
+                    const issueCount = parseInt(issuesMatch[1]);
+                    findings.push({
+                        severity: 'INFO',
+                        title: `Arachni scan completed: ${issueCount} issues detected`,
+                        tool: 'arachni',
+                        type: 'scan_summary',
+                        issueCount: issueCount,
+                        line: line.trim()
+                    });
+                }
+            }
+
+            // Информация о сканировании
+            if (line.includes('system info') || line.includes('platform info')) {
+                findings.push({
+                    severity: 'INFO',
+                    title: 'Arachni system/platform information',
+                    tool: 'arachni',
+                    type: 'scan_info',
+                    line: line.trim()
+                });
+            }
+
+            // Ошибки
+            if (line.includes('[!]') || line.includes('ERROR') || line.includes('error')) {
+                findings.push({
+                    severity: 'MEDIUM',
+                    title: 'Arachni scan error or warning',
+                    tool: 'arachni',
+                    type: 'scan_error',
+                    line: line.trim()
+                });
+            }
+        }
+
+        return findings;
+    }
+
+    /**
+     * Парсер для w4af
+     */
+    parseW4afFindings(rawOutput) {
+        const findings = [];
+        const lines = rawOutput.split('\n');
+
+        for (const line of lines) {
+            // Основные уязвимости w4af
+            if (line.includes('Vulnerability') || line.includes('found') && line.includes('vulnerability')) {
+                let severity = 'MEDIUM';
+                let title = 'w4af vulnerability detected';
+
+                // Определение типа уязвимости
+                if (line.includes('SQL') || line.includes('sql')) {
+                    severity = 'HIGH';
+                    title = 'SQL Injection vulnerability';
+                } else if (line.includes('XSS') || line.includes('xss')) {
+                    severity = 'HIGH';
+                    title = 'Cross-Site Scripting vulnerability';
+                } else if (line.includes('CSRF') || line.includes('csrf')) {
+                    severity = 'MEDIUM';
+                    title = 'CSRF vulnerability';
+                } else if (line.includes('file inclusion') || line.includes('LFI') || line.includes('RFI')) {
+                    severity = 'HIGH';
+                    title = 'File Inclusion vulnerability';
+                } else if (line.includes('command execution') || line.includes('RCE')) {
+                    severity = 'HIGH';
+                    title = 'Remote Code Execution vulnerability';
+                } else if (line.includes('directory listing') || line.includes('information disclosure')) {
+                    severity = 'LOW';
+                    title = 'Information Disclosure';
+                }
+
+                findings.push({
+                    severity: severity,
+                    title: title,
+                    tool: 'w4af',
+                    type: 'vulnerability',
+                    line: line.trim()
+                });
+            }
+
+            // Статистика сканирования
+            if (line.includes('Scan finished') || line.includes('scan completed')) {
+                findings.push({
+                    severity: 'INFO',
+                    title: 'w4af scan completed',
+                    tool: 'w4af',
+                    type: 'scan_summary',
+                    line: line.trim()
+                });
+            }
+
+            // Количество найденных уязвимостей
+            const vulnCountMatch = line.match(/Found\s+(\d+)\s+(?:vulnerabilities?|issues?)/i);
+            if (vulnCountMatch) {
+                const vulnCount = parseInt(vulnCountMatch[1]);
+                findings.push({
+                    severity: 'INFO',
+                    title: `w4af found ${vulnCount} vulnerabilities`,
+                    tool: 'w4af',
+                    type: 'scan_stats',
+                    vulnCount: vulnCount,
+                    line: line.trim()
+                });
+            }
+
+            // Информация о сканировании
+            if (line.includes('Starting') || line.includes('scanning') || line.includes('audit')) {
+                findings.push({
+                    severity: 'INFO',
+                    title: 'w4af scan progress information',
+                    tool: 'w4af',
+                    type: 'scan_progress',
+                    line: line.trim()
+                });
+            }
+
+            // Ошибки и предупреждения
+            if (line.includes('ERROR') || line.includes('Error') || line.includes('WARNING') || line.includes('Warning')) {
+                let severity = 'LOW';
+                if (line.includes('ERROR') || line.includes('Error')) severity = 'MEDIUM';
+
+                findings.push({
+                    severity: severity,
+                    title: 'w4af scan error or warning',
+                    tool: 'w4af',
                     type: 'scan_issue',
                     line: line.trim()
                 });

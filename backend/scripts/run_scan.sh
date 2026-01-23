@@ -62,7 +62,7 @@ run_nikto_scan() {
 
     # Run the scan (output will be captured by parent process)
     docker run --rm --network "$DOCKER_NETWORK" \
-        alpine/nikto \
+        ghcr.io/sullo/nikto:latest \
         -C all \
         -Tuning x \
         -Plugins ALL \
@@ -94,6 +94,57 @@ run_wapiti_scan() {
     echo "Wapiti scan completed."
 }
 
+# Function to run Arachni scan
+run_arachni_scan() {
+    local profile="$1"
+    local run_id="$2"
+    local target="$3"
+
+    echo "Starting Arachni scan..."
+
+    # Basic Arachni scan command
+    CMD="/usr/local/arachni/bin/arachni --output-verbose --report-save-path=/dev/null $target"
+
+    # Run the scan (output will be captured by parent process)
+    docker run --rm --network "$DOCKER_NETWORK" \
+        arachni/arachni \
+        $CMD 2>&1
+
+    echo "Arachni scan completed."
+}
+
+# Function to run w4af scan
+run_w4af_scan() {
+    local profile="$1"
+    local run_id="$2"
+    local target="$3"
+
+    echo "Starting w4af scan..."
+
+    # Create w4af script file and run
+    docker run --rm --network "$DOCKER_NETWORK" \
+        --entrypoint sh \
+        w4af/w4af:latest \
+        -c "
+            cat > /tmp/w4af_script << 'EOF'
+plugins
+output console
+crawl web_spider
+audit sqli
+audit xss
+back
+target
+set target $target
+back
+start
+exit
+EOF
+            echo 'y' | python w4af_console -s /tmp/w4af_script
+        " 2>&1
+
+    echo "w4af scan completed."
+}
+
 # Function to run other tools (placeholder)
 run_other_tool() {
     local tool="$1"
@@ -101,7 +152,7 @@ run_other_tool() {
     local run_id="$3"
     local target="$4"
 
-    echo "Tool '$tool' not yet implemented. Available: zap, nikto, wapiti"
+    echo "Tool '$tool' not yet implemented. Available: zap, nikto, wapiti, arachni, w4af"
     exit 1
 }
 
@@ -117,6 +168,12 @@ case "$TOOL" in
         ;;
     "wapiti")
         run_wapiti_scan "$PROFILE" "$RUN_ID" "$TARGET_URL"
+        ;;
+    "arachni")
+        run_arachni_scan "$PROFILE" "$RUN_ID" "$TARGET_URL"
+        ;;
+    "w4af")
+        run_w4af_scan "$PROFILE" "$RUN_ID" "$TARGET_URL"
         ;;
     *)
         run_other_tool "$TOOL" "$PROFILE" "$RUN_ID" "$TARGET_URL"
