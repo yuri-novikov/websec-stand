@@ -32,7 +32,7 @@ deploy_job:
     - echo "$SSH_PRIVATE_KEY" > private_key && chmod 600 private_key
     - apt-get update && apt-get install -y openssh-client
     - |
-      ssh -i private_key -o StrictHostKeyChecking=accept-new "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "APP_DIR='$APP_DIR' bash -s" <<'EOF'
+      ssh -i private_key -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" "APP_DIR='$APP_DIR' bash -s" <<'EOF'
         set -e
         cd "$APP_DIR"
         git fetch flick
