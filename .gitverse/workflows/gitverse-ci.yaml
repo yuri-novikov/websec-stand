@@ -5,9 +5,6 @@ on:
   push:
     branches: ["**"]
 
-env:
-  APP_DIR: /var/www/websec-stand
-
 jobs:
   # Сборка и тестирование
   build-test:
@@ -33,10 +30,9 @@ jobs:
         run: |
           cat <<< "$SERVER_SSH_KEY" > private_key
           chmod 600 private_key
-          tail -n 8 private_key
           ssh -i private_key -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" <<'EOF'
             set -e
-            cd "$APP_DIR"
+            cd /var/www/websec-stand
             git fetch verse
             git checkout main
             git pull verse main
