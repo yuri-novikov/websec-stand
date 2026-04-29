@@ -7,10 +7,10 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
-      allowedHosts: [env.VITE_API_HOST],
+      allowedHosts: ["vkr-stand.starfallcamp.ru"],
       port: 5173,
       proxy: {
-        "/api": env.VITE_API_HOST + "/" + env.VITE_API_HOST,
+        "/api": env.VITE_API_SCHEME + "://" + env.VITE_API_HOST,
       },
     },
   };
