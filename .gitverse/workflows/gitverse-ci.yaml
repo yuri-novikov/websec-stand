@@ -11,7 +11,7 @@ env:
 jobs:
   # Сборка и тестирование
   build-test:
-    runs-on: ubuntu-latest
+    runs-on: [ubuntu-latest]
     steps:
       - name: Nominal build step
         run: echo "Build stage passed"
