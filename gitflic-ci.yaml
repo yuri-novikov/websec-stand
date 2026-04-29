@@ -48,7 +48,6 @@ deploy_job:
       EOF
   # environment:
   #   name: production
-  rules:
-    # выполняем деплой только для ветки main
-    - if: '$CI_COMMIT_BRANCH == "main"'
-      when: on_success
+  only:
+    - main
+  when: on_success
