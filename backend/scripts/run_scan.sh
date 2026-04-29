@@ -14,7 +14,7 @@ RUN_ID="${5:-${SCRIPT_RUN_ID}}" # Используем правильный runI
 BATCH_ID="${6:-unknown}" # Batch ID for organizing files
 
 # Configuration
-DOCKER_NETWORK="vkr-stand_dast-network"
+DOCKER_NETWORK="websec-stand_dast-network"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 ARTIFACTS_DIR="$PROJECT_ROOT/artifacts"
