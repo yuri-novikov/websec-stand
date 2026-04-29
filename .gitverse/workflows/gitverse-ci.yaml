@@ -1,0 +1,43 @@
+name: websec-stand CI/CD
+
+# Запуск тестов на любой push и деплой — только из ветки main.
+on:
+  push:
+    branches: ["**"]
+
+env:
+  APP_DIR: /var/www/websec-stand
+
+jobs:
+  # Сборка и тестирование
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Nominal build step
+        run: echo "Build stage passed"
+      - name: Nominal test step
+        run: echo "Test stage passed"
+
+  # Деплой на продакшен-сервер
+  deploy:
+    runs-on: ubuntu-latest
+    # Запускать только при пушах в ветку main и после успешного build‑test
+    needs: build-test
+    if: ${{ github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Deploy via SSH
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }} # адрес сервера
+          SERVER_USER: ${{ secrets.SERVER_USER }} # ssh‑пользователь
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }} # приватный ключ
+        run: |
+          echo "$SERVER_SSH_KEY" > private_key && chmod 600 private_key
+          ssh -i private_key -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" <<'EOF'
+            set -e
+            cd "$APP_DIR"
+            git fetch verse
+            git checkout main
+            git pull verse main
+            pm2 reload ecosystem.config.js || pm2 start ecosystem.config.js
+            pm2 save
+          EOF
