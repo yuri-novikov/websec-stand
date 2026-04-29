@@ -1,0 +1,54 @@
+image: ubuntu:latest
+
+# Переменные окружения (можно задать в настройках CI/CD проекта)
+variables:
+  APP_DIR: "/var/www/websec-stand"
+
+stages:
+  - build
+  - test
+  - deploy
+
+# Номинальная сборка (проходной шаг)
+build_job:
+  stage: build
+  script:
+    - echo "Build stage passed"
+
+# Номинальные тесты (проходной шаг)
+test_job:
+  stage: test
+  script:
+    - echo "Test stage passed"
+
+# Деплой
+deploy_job:
+  stage: deploy
+  needs:
+    - build_job
+    - test_job
+  script:
+    # Сохраняем SSH-ключ и подключаемся к серверу
+    - echo "$SSH_PRIVATE_KEY" > private_key && chmod 600 private_key
+    - apt-get update && apt-get install -y openssh-client
+    - |
+      ssh -i private_key -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_HOST" -p "$SERVER_PORT" "APP_DIR='$APP_DIR' bash -s" <<'EOF'
+        set -e
+        if [ ! -d "$APP_DIR" ]; then
+          git clone https://gitflic.ru/project/yurin/websec-stand.git "$APP_DIR"
+        fi
+        cd "$APP_DIR"
+        git fetch flick
+        git checkout main
+        git pull flick main
+
+        pm2 reload ecosystem.config.js || pm2 start ecosystem.config.js
+
+        pm2 save
+      EOF
+  # environment:
+  #   name: production
+  rules:
+    # выполняем деплой только для ветки main
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
