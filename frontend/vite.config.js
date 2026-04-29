@@ -9,9 +9,6 @@ export default defineConfig(({ mode }) => {
     server: {
       allowedHosts: ["vkr-stand.starfallcamp.ru"],
       port: 5173,
-      proxy: {
-        "/api": env.VITE_API_SCHEME + "://" + env.VITE_API_HOST,
-      },
     },
   };
 });

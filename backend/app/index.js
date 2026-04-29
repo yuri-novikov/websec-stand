@@ -9,6 +9,21 @@ const WS_PORT = 3002;
 const batchManager = new BatchManager();
 
 try {
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header(
+      "Access-Control-Allow-Methods",
+      "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+    );
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(204);
+    }
+
+    next();
+  });
+
   app.use(express.json());
 } catch {}
 
@@ -26,12 +41,12 @@ app.post("/api/batch/create", (req, res) => {
     res.json({
       success: true,
       batchId: batch.id,
-      message: `Batch created with ${config.repetitions} runs`
+      message: `Batch created with ${config.repetitions} runs`,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -41,18 +56,18 @@ app.post("/api/batch/:batchId/start", async (req, res) => {
     const { batchId } = req.params;
 
     // Запустить batch в фоне
-    batchManager.startBatch(batchId).catch(error => {
+    batchManager.startBatch(batchId).catch((error) => {
       console.error(`Batch ${batchId} failed:`, error);
     });
 
     res.json({
       success: true,
-      message: `Batch ${batchId} started`
+      message: `Batch ${batchId} started`,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -65,18 +80,18 @@ app.get("/api/batch/:batchId/status", (req, res) => {
     if (!status) {
       return res.status(404).json({
         success: false,
-        error: `Batch ${batchId} not found`
+        error: `Batch ${batchId} not found`,
       });
     }
 
     res.json({
       success: true,
-      status: status
+      status: status,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -86,12 +101,12 @@ app.get("/api/batch/active", (req, res) => {
     const activeBatches = batchManager.getActiveBatches();
     res.json({
       success: true,
-      batches: activeBatches
+      batches: activeBatches,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -99,22 +114,22 @@ app.get("/api/batch/active", (req, res) => {
 // WebSocket сервер для real-time обновлений
 const wss = new WebSocketServer({ port: WS_PORT });
 
-wss.on('connection', (ws) => {
-  console.log('WebSocket client connected');
+wss.on("connection", (ws) => {
+  console.log("WebSocket client connected");
 
-  ws.on('message', (message) => {
+  ws.on("message", (message) => {
     try {
       const data = JSON.parse(message.toString());
-      if (data.type === 'subscribe' && data.batchId) {
+      if (data.type === "subscribe" && data.batchId) {
         batchManager.subscribeClient(data.batchId, ws);
       }
     } catch (error) {
-      console.error('WebSocket message error:', error);
+      console.error("WebSocket message error:", error);
     }
   });
 
-  ws.on('close', () => {
-    console.log('WebSocket client disconnected');
+  ws.on("close", () => {
+    console.log("WebSocket client disconnected");
   });
 });
 

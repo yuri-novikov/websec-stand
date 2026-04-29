@@ -16,9 +16,14 @@ import {
   Row,
   Col,
 } from "antd";
-import axios from "axios";
+import axiosBase from "axios";
 
 const { Title } = Typography;
+
+const API_BASE =
+  import.meta.env.VITE_API_SCHEME + "://" + import.meta.env.VITE_API_HOST;
+
+const axios = axiosBase.create({ baseURL: API_BASE });
 
 const pingBackend = async () => {
   try {
