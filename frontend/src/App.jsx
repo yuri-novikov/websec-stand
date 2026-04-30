@@ -286,8 +286,8 @@ const BatchScans = () => {
           onValuesChange={handleBatchFormChange}
           initialValues={batchInitialValues}
         >
-          <Row gutter={16}>
-            <Col span={12}>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={12}>
               <Form.Item
                 label="Целевой URL"
                 name="targetUrl"
@@ -296,7 +296,7 @@ const BatchScans = () => {
                 <Input placeholder="http://juice-shop:3000" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} md={12}>
               <Form.Item
                 label="Инструмент"
                 name="tool"
@@ -315,8 +315,8 @@ const BatchScans = () => {
             </Col>
           </Row>
 
-          <Row gutter={16}>
-            <Col span={8}>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={8} style={{ display: "flex", alignItems: "end" }}>
               <Form.Item
                 label="Количество повторений"
                 name="repetitions"
@@ -324,11 +324,12 @@ const BatchScans = () => {
                   { required: true, message: "Укажите количество" },
                   { type: "number", min: 1, max: 50, message: "1-50 прогонов" },
                 ]}
+                style={{ flex: 1 }}
               >
                 <InputNumber min={1} max={50} style={{ width: "100%" }} />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} md={8} style={{ display: "flex", alignItems: "end" }}>
               <Form.Item
                 label="Интервал между прогонами (сек)"
                 name="intervalSeconds"
@@ -336,11 +337,16 @@ const BatchScans = () => {
                   { required: true },
                   { type: "number", min: 0, max: 60, message: "0-60 секунд" },
                 ]}
+                style={{ flex: 1 }}
               >
                 <InputNumber min={0} max={60} style={{ width: "100%" }} />
               </Form.Item>
             </Col>
-            <Col span={8} style={{ display: "flex", alignItems: "end" }}>
+            <Col
+              xs={24}
+              md={8}
+              style={{ display: "flex", alignItems: "end", marginBottom: 24 }}
+            >
               <Button
                 type="primary"
                 htmlType="submit"
@@ -607,7 +613,12 @@ const BatchScans = () => {
 
 const App = () => {
   return (
-    <Flex vertical style={{ padding: 40 }}>
+    <Flex
+      vertical
+      style={{
+        padding: "clamp(20px, 4vw, 40px)",
+      }}
+    >
       <Flex align="start" justify="space-between">
         <Title>VKR Web Security Scanner</Title>
         <Button type="primary" onClick={pingBackend}>
