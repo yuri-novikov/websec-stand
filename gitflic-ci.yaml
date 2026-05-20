@@ -3,11 +3,22 @@ image: ubuntu:latest
 # Переменные окружения (можно задать в настройках CI/CD проекта)
 variables:
   APP_DIR: "/var/www/websec-stand"
+  SECURITY_ARTIFACTS_DIR: "artifacts/security"
+  GITLEAKS_IMAGE: "ghcr.io/gitleaks/gitleaks:v8.28.0"
+  CDXGEN_IMAGE: "ghcr.io/cyclonedx/cdxgen:v12.0.0"
+  CYCLONEDX_CLI_IMAGE: "cyclonedx/cyclonedx-cli:0.29.1"
+  OSV_SCANNER_IMAGE: "ghcr.io/google/osv-scanner:v2.2.3"
+  TRIVY_IMAGE: "aquasec/trivy:0.63.0"
 
 stages:
   - build
   - test
+  - security
   - deploy
+
+.security_artifacts_setup:
+  before_script:
+    - mkdir -p "$SECURITY_ARTIFACTS_DIR"
 
 # Номинальная сборка (проходной шаг)
 build_job:
@@ -21,12 +32,123 @@ test_job:
   script:
     - echo "Test stage passed"
 
+# Сканирование репозитория на секреты.
+# Gitleaks возвращает ненулевой код и при найденных утечках, и при ошибке запуска,
+# поэтому статус сохраняется явно: отчет успевает попасть в artifacts.
+gitleaks_scan:
+  stage: security
+  extends: .security_artifacts_setup
+  image:
+    name: "$GITLEAKS_IMAGE"
+    entrypoint: [""]
+  script:
+    - |
+      set -e
+      set +e
+      gitleaks git --redact --report-format json --report-path "$SECURITY_ARTIFACTS_DIR/gitleaks.json"
+      GITLEAKS_EXIT_CODE=$?
+      set -e
+      exit "$GITLEAKS_EXIT_CODE"
+  artifacts:
+    name: security-gitleaks
+    when: always
+    paths:
+      - artifacts/security/gitleaks.json
+
+# Генерация CycloneDX SBOM для JavaScript-проекта.
+sbom_generation:
+  stage: security
+  extends: .security_artifacts_setup
+  image:
+    name: "$CDXGEN_IMAGE"
+    entrypoint: [""]
+  script:
+    - cdxgen -t js -r -o "$SECURITY_ARTIFACTS_DIR/sbom.cdx.json" --spec-version 1.6
+  artifacts:
+    name: security-sbom
+    when: always
+    paths:
+      - artifacts/security/sbom.cdx.json
+
+# Валидация SBOM по спецификации CycloneDX 1.6.
+sbom_validation:
+  stage: security
+  extends: .security_artifacts_setup
+  image:
+    name: "$CYCLONEDX_CLI_IMAGE"
+    entrypoint: [""]
+  needs:
+    - sbom_generation
+  script:
+    - cyclonedx validate --input-file "$SECURITY_ARTIFACTS_DIR/sbom.cdx.json" --input-format json --input-version v1_6 --fail-on-errors
+  artifacts:
+    name: security-sbom-validation
+    when: always
+    paths:
+      - artifacts/security/sbom.cdx.json
+
+# Проверка SBOM по базе OSV.
+# OSV-Scanner возвращает 1 при найденных уязвимостях; статус сохраняется после
+# записи JSON-отчета, чтобы отчет был доступен в артефактах.
+osv_scan:
+  stage: security
+  extends: .security_artifacts_setup
+  image:
+    name: "$OSV_SCANNER_IMAGE"
+    entrypoint: [""]
+  needs:
+    - sbom_generation
+  script:
+    - |
+      set -e
+      set +e
+      osv-scanner --sbom="$SECURITY_ARTIFACTS_DIR/sbom.cdx.json" --format json --output "$SECURITY_ARTIFACTS_DIR/osv-report.json"
+      OSV_EXIT_CODE=$?
+      set -e
+      exit "$OSV_EXIT_CODE"
+  artifacts:
+    name: security-osv
+    when: always
+    paths:
+      - artifacts/security/sbom.cdx.json
+      - artifacts/security/osv-report.json
+
+# Проверка SBOM в Trivy.
+# Для Trivy явно задан --exit-code 1, иначе найденные HIGH/CRITICAL проблемы
+# могут не приводить к падению job.
+trivy_sbom_scan:
+  stage: security
+  extends: .security_artifacts_setup
+  image:
+    name: "$TRIVY_IMAGE"
+    entrypoint: [""]
+  needs:
+    - sbom_generation
+  script:
+    - |
+      set -e
+      set +e
+      trivy sbom "$SECURITY_ARTIFACTS_DIR/sbom.cdx.json" --format json --output "$SECURITY_ARTIFACTS_DIR/trivy-sbom.json" --severity HIGH,CRITICAL --exit-code 1
+      TRIVY_EXIT_CODE=$?
+      set -e
+      exit "$TRIVY_EXIT_CODE"
+  artifacts:
+    name: security-trivy-sbom
+    when: always
+    paths:
+      - artifacts/security/sbom.cdx.json
+      - artifacts/security/trivy-sbom.json
+
 # Деплой
 deploy_job:
   stage: deploy
   needs:
     - build_job
     - test_job
+    - gitleaks_scan
+    - sbom_validation
+    - osv_scan
+    - trivy_sbom_scan
   script:
     # Сохраняем SSH-ключ и подключаемся к серверу
     - echo "$SSH_PRIVATE_KEY" > private_key && chmod 600 private_key
