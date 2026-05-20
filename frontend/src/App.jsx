@@ -6,19 +6,26 @@ import {
   Form,
   Input,
   Select,
-  Alert,
   Flex,
   Progress,
   Card,
-  List,
   Tag,
   InputNumber,
   Row,
   Col,
+  Table,
+  Space,
+  Drawer,
+  Checkbox,
+  Segmented,
+  Statistic,
+  Divider,
+  Empty,
+  Descriptions,
 } from "antd";
 import axiosBase from "axios";
 
-const { Title } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 const API_BASE =
   import.meta.env.VITE_API_SCHEME + "://" + import.meta.env.VITE_API_HOST;
@@ -35,6 +42,699 @@ const pingBackend = async () => {
 };
 
 const WSS_URL = import.meta.env.VITE_WSS_URL;
+
+const routes = {
+  scanner: "/",
+  recommendations: "/recommendations",
+};
+
+const getCurrentRoute = () =>
+  window.location.pathname === routes.recommendations
+    ? routes.recommendations
+    : routes.scanner;
+
+const navigateTo = (path) => {
+  window.history.pushState({}, "", path);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+};
+
+const externalLinks = {
+  brokenAccess: "https://owasp.org/Top10/A01_2021-Broken_Access_Control/",
+  injection: "https://owasp.org/Top10/A03_2021-Injection/",
+  xss: "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
+  auth: "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html",
+  crypto: "https://owasp.org/Top10/A02_2021-Cryptographic_Failures/",
+  misconfiguration:
+    "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/",
+  logging:
+    "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html",
+  container:
+    "https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html",
+  componentAnalysis: "https://owasp.org/www-community/Component_Analysis",
+  sbom: "https://cheatsheetseries.owasp.org/cheatsheets/Dependency_Graph_SBOM_Cheat_Sheet.html",
+  cicd: "https://owasp.org/www-project-devsecops-guideline/",
+  zap: "https://www.zaproxy.org/",
+  semgrep: "https://semgrep.dev/",
+  trivy: "https://trivy.dev/",
+  gitleaks: "https://gitleaks.io/",
+  dependencyTrack: "https://owasp.org/www-project-dependency-track/",
+  cyclonedx: "https://cyclonedx.org/",
+  syft: "https://github.com/anchore/syft",
+  grype: "https://github.com/anchore/grype",
+  falco: "https://falco.org/",
+};
+
+const recommendations = [
+  {
+    key: "access-control",
+    category: "Прикладная логика",
+    title: "Ошибки контроля доступа в backend или API",
+    threat:
+      "Несанкционированный доступ к данным другого пользователя, повышение привилегий",
+    detection: [
+      "Анализ бизнес-сценариев",
+      "Ручное тестирование",
+      "Интеграционные тесты",
+      "DAST",
+    ],
+    protection: [
+      "Проверять права на стороне сервера при каждом обращении к объекту",
+      "Применять принцип минимальных привилегий",
+      "Покрывать сценарии доступа интеграционными тестами",
+    ],
+    stage: ["Проверка кода", "Тесты перед merge", "DAST на тестовом стенде"],
+    definitions: [
+      { label: "OWASP Broken Access Control", url: externalLinks.brokenAccess },
+    ],
+    tools: [{ label: "OWASP ZAP", url: externalLinks.zap }],
+  },
+  {
+    key: "input-processing",
+    category: "Прикладная логика",
+    title: "Некорректная обработка пользовательского ввода",
+    threat: "SQL-инъекция, инъекция команды, изменение логики запроса",
+    detection: ["SAST", "DAST", "Проверка кода", "Тесты негативных сценариев"],
+    protection: [
+      "Использовать параметризованные запросы",
+      "Валидировать ввод",
+      "Отказаться от конкатенации команд и SQL-строк",
+    ],
+    stage: [
+      "SAST при merge request",
+      "DAST после развертывания тестового стенда",
+    ],
+    definitions: [{ label: "OWASP Injection", url: externalLinks.injection }],
+    tools: [
+      { label: "Semgrep", url: externalLinks.semgrep },
+      { label: "OWASP ZAP", url: externalLinks.zap },
+    ],
+  },
+  {
+    key: "client-output",
+    category: "Прикладная логика",
+    title: "Некорректный вывод данных на клиенте",
+    threat: "XSS, кража сессии, выполнение действий от имени пользователя",
+    detection: ["DAST", "SAST", "Ручная проверка DOM-сценариев"],
+    protection: [
+      "Использовать контекстное экранирование",
+      "Безопасно работать с HTML",
+      "Настроить Content Security Policy",
+      "Проверять клиентские библиотеки",
+    ],
+    stage: [
+      "Проверка frontend-кода",
+      "DAST",
+      "Контроль HTTP-заголовков безопасности",
+    ],
+    definitions: [{ label: "OWASP XSS Prevention", url: externalLinks.xss }],
+    tools: [
+      { label: "OWASP ZAP", url: externalLinks.zap },
+      { label: "Semgrep", url: externalLinks.semgrep },
+    ],
+  },
+  {
+    key: "sessions",
+    category: "Прикладная логика",
+    title: "Ошибки аутентификации и управления сессиями",
+    threat:
+      "Захват учетной записи, обход входа, повторное использование сессии",
+    detection: ["Ручное тестирование", "DAST", "Анализ конфигурации cookies"],
+    protection: [
+      "Использовать Secure, HttpOnly и SameSite cookies",
+      "Ограничивать время жизни токенов",
+      "Защитить восстановление пароля",
+    ],
+    stage: ["Интеграционные тесты", "Проверка конфигурации", "Тестовый DAST"],
+    definitions: [
+      { label: "OWASP Authentication Cheat Sheet", url: externalLinks.auth },
+    ],
+    tools: [{ label: "OWASP ZAP", url: externalLinks.zap }],
+  },
+  {
+    key: "crypto",
+    category: "Прикладная логика",
+    title: "Ошибки криптографической защиты",
+    threat: "Раскрытие паролей, токенов и чувствительных данных",
+    detection: ["SAST", "Проверка конфигурации", "Проверка кода"],
+    protection: [
+      "Использовать TLS",
+      "Применять надежное хэширование паролей",
+      "Отказаться от устаревших алгоритмов",
+      "Безопасно хранить ключи",
+    ],
+    stage: ["SAST", "Проверка переменных окружения", "Проверка конфигурации"],
+    definitions: [
+      { label: "OWASP Cryptographic Failures", url: externalLinks.crypto },
+    ],
+    tools: [
+      { label: "Semgrep", url: externalLinks.semgrep },
+      { label: "Gitleaks", url: externalLinks.gitleaks },
+    ],
+  },
+  {
+    key: "security-config",
+    category: "Конфигурация и эксплуатация",
+    title: "Ошибки конфигурации безопасности",
+    threat:
+      "Раскрытие служебной информации, доступ к административным endpoint'ам, небезопасный CORS",
+    detection: ["DAST", "Проверка конфигураций", "Анализ deployment-файлов"],
+    protection: [
+      "Отключить debug-режим",
+      "Настроить security headers",
+      "Ограничить CORS",
+      "Закрыть служебные endpoint'ы",
+    ],
+    stage: ["Этап сборки и развертывания", "DAST после деплоя"],
+    definitions: [
+      {
+        label: "OWASP Security Misconfiguration",
+        url: externalLinks.misconfiguration,
+      },
+    ],
+    tools: [
+      { label: "OWASP ZAP", url: externalLinks.zap },
+      { label: "Trivy", url: externalLinks.trivy },
+    ],
+  },
+  {
+    key: "logging",
+    category: "Конфигурация и эксплуатация",
+    title: "Недостаточное логирование и мониторинг",
+    threat: "Позднее обнаружение атаки, невозможность расследования инцидента",
+    detection: [
+      "Анализ логов",
+      "Проверка событий безопасности",
+      "Тестирование негативных сценариев",
+    ],
+    protection: [
+      "Вести структурированное логирование",
+      "Исключить секреты из логов",
+      "Настроить алерты на критические события",
+    ],
+    stage: ["Runtime", "Staging", "Эксплуатационная среда"],
+    definitions: [
+      { label: "OWASP Logging Cheat Sheet", url: externalLinks.logging },
+    ],
+    tools: [{ label: "Gitleaks", url: externalLinks.gitleaks }],
+  },
+  {
+    key: "runtime-components",
+    category: "Конфигурация и эксплуатация",
+    title: "Избыточные возможности сторонних компонентов в runtime",
+    threat: "Доступ зависимости к файловой системе, сети или выполнению команд",
+    detection: [
+      "Runtime-мониторинг",
+      "Анализ capabilities",
+      "Проверка поведения зависимостей",
+    ],
+    protection: [
+      "Ограничить права процесса",
+      "Использовать контейнерную изоляцию",
+      "Рассмотреть CBOM и runtime enforcement",
+    ],
+    stage: ["Staging", "Эксплуатационная среда"],
+    definitions: [
+      {
+        label: "OWASP Component Analysis",
+        url: externalLinks.componentAnalysis,
+      },
+    ],
+    tools: [
+      { label: "Falco", url: externalLinks.falco },
+      { label: "Dependency-Track", url: externalLinks.dependencyTrack },
+    ],
+  },
+  {
+    key: "container-image",
+    category: "Конфигурация и эксплуатация",
+    title: "Уязвимости контейнерного образа",
+    threat:
+      "Эксплуатация уязвимого базового образа, запуск приложения с избыточными правами",
+    detection: ["Сканирование образов", "Проверка Dockerfile", "Анализ слоев"],
+    protection: [
+      "Использовать минимальный базовый образ",
+      "Запускать приложение не от root",
+      "Удалять dev-зависимости и секреты",
+    ],
+    stage: ["Этап сборки Docker-образа"],
+    definitions: [
+      { label: "OWASP Docker Security", url: externalLinks.container },
+    ],
+    tools: [{ label: "Trivy", url: externalLinks.trivy }],
+  },
+  {
+    key: "known-dependencies",
+    category: "Цепочка поставки и DevSecOps",
+    title: "Известные уязвимости в зависимостях",
+    threat:
+      "Эксплуатация известных уязвимостей в прямых или транзитивных пакетах",
+    detection: ["SCA", "SBOM", "SBOM-based vulnerability scanning"],
+    protection: [
+      "Анализировать зависимости",
+      "Проверять install-скрипты",
+      "Сканировать секреты",
+    ],
+    stage: ["Job проверки зависимостей до сборки приложения"],
+    definitions: [
+      {
+        label: "OWASP Component Analysis",
+        url: externalLinks.componentAnalysis,
+      },
+    ],
+    tools: [
+      { label: "Dependency-Track", url: externalLinks.dependencyTrack },
+      { label: "Trivy", url: externalLinks.trivy },
+    ],
+  },
+  {
+    key: "unsafe-packages",
+    category: "Цепочка поставки и DevSecOps",
+    title: "Вредоносные или небезопасные пакеты",
+    threat:
+      "Утечка секретов, выполнение вредоносного install-скрипта, подмена поведения приложения",
+    detection: [
+      "Фиксация версий",
+      "Обновление зависимостей",
+      "Контроль lock-файлов",
+      "Отказ от неподдерживаемых пакетов",
+    ],
+    protection: [
+      "Минимизировать зависимости",
+      "Контролировать новые пакеты",
+      "Запретить небезопасные lifecycle-скрипты",
+      "Включить двухфакторную защиту учетных записей",
+    ],
+    stage: ["Этап установки зависимостей", "Просмотр изменений списка пакетов"],
+    definitions: [
+      {
+        label: "OWASP Component Analysis",
+        url: externalLinks.componentAnalysis,
+      },
+    ],
+    tools: [
+      { label: "Gitleaks", url: externalLinks.gitleaks },
+      { label: "Semgrep", url: externalLinks.semgrep },
+    ],
+  },
+  {
+    key: "sbom-quality",
+    category: "Цепочка поставки и DevSecOps",
+    title: "Неполный или некорректный SBOM",
+    threat:
+      "Ложноотрицательный результат при проверке уязвимостей, ложное ощущение безопасности",
+    detection: [
+      "Валидация SBOM",
+      "Сравнение результатов разных инструментов",
+      "Контроль обязательных полей",
+    ],
+    protection: [
+      "Использовать стабильный генератор SBOM",
+      "Проверять формат",
+      "Сохранять SBOM как артефакт",
+    ],
+    stage: ["Этап генерации SBOM после установки зависимостей"],
+    definitions: [
+      { label: "OWASP SBOM Cheat Sheet", url: externalLinks.sbom },
+      { label: "CycloneDX", url: externalLinks.cyclonedx },
+    ],
+    tools: [
+      { label: "Syft", url: externalLinks.syft },
+      { label: "Dependency-Track", url: externalLinks.dependencyTrack },
+    ],
+  },
+  {
+    key: "cicd-compromise",
+    category: "Цепочка поставки и DevSecOps",
+    title: "Компрометация CI/CD-конвейера",
+    threat:
+      "Подмена артефакта, утечка токенов, выполнение вредоносной команды в конвейере",
+    detection: [
+      "Проверка YAML-файлов",
+      "Сканирование на секреты",
+      "Аудит прав агентов сборки",
+    ],
+    protection: [
+      "Использовать защищенные ветки",
+      "Ограничить права агентов сборки",
+      "Разделять секреты",
+      "Запретить вывод секретов в логи",
+    ],
+    stage: ["Все этапы CI/CD", "Build", "Deploy"],
+    definitions: [
+      { label: "OWASP DevSecOps Guideline", url: externalLinks.cicd },
+    ],
+    tools: [
+      { label: "Gitleaks", url: externalLinks.gitleaks },
+      { label: "Semgrep", url: externalLinks.semgrep },
+    ],
+  },
+];
+
+const categoryOptions = [
+  ...new Set(recommendations.map((item) => item.category)),
+];
+const detectionOptions = [
+  ...new Set(recommendations.flatMap((item) => item.detection)),
+].sort((a, b) => a.localeCompare(b, "ru"));
+const stageOptions = [
+  ...new Set(recommendations.flatMap((item) => item.stage)),
+].sort((a, b) => a.localeCompare(b, "ru"));
+
+const scenarioPresets = {
+  Все: {},
+  "Перед merge": {
+    detections: [
+      "SAST",
+      "Проверка кода",
+      "Проверка YAML-файлов",
+      "Сканирование на секреты",
+    ],
+  },
+  "После деплоя": {
+    detections: ["DAST", "Ручное тестирование", "Анализ конфигурации cookies"],
+  },
+  Контейнеры: {
+    query: "контейнер",
+  },
+  Зависимости: {
+    query: "зависим",
+  },
+};
+
+const linkList = (items) => (
+  <Space size={[8, 8]} wrap>
+    {items.map((item) => (
+      <Button key={item.url} href={item.url} target="_blank" size="small">
+        {item.label}
+      </Button>
+    ))}
+  </Space>
+);
+
+const tagList = (items, color) => (
+  <Space size={[4, 4]} wrap>
+    {items.map((item) => (
+      <Tag key={item} color={color}>
+        {item}
+      </Tag>
+    ))}
+  </Space>
+);
+
+const RecommendationsPage = () => {
+  const [query, setQuery] = useState("");
+  const [categories, setCategories] = useState([]);
+  const [detections, setDetections] = useState([]);
+  const [stages, setStages] = useState([]);
+  const [selectedRecommendation, setSelectedRecommendation] = useState(null);
+
+  const normalizedQuery = query.trim().toLowerCase();
+
+  const filteredRecommendations = recommendations.filter((item) => {
+    const haystack = [
+      item.category,
+      item.title,
+      item.threat,
+      ...item.detection,
+      ...item.protection,
+      ...item.stage,
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    const matchesQuery = !normalizedQuery || haystack.includes(normalizedQuery);
+    const matchesCategory =
+      categories.length === 0 || categories.includes(item.category);
+    const matchesDetection =
+      detections.length === 0 ||
+      detections.some((method) => item.detection.includes(method));
+    const matchesStage =
+      stages.length === 0 || stages.some((stage) => item.stage.includes(stage));
+
+    return matchesQuery && matchesCategory && matchesDetection && matchesStage;
+  });
+
+  const applyScenario = (scenario) => {
+    const preset = scenarioPresets[scenario] || {};
+    setQuery(preset.query || "");
+    setDetections(preset.detections || []);
+    setCategories(preset.categories || []);
+    setStages(preset.stages || []);
+  };
+
+  const toolCount = new Set(
+    filteredRecommendations.flatMap((item) =>
+      item.tools.map((tool) => tool.label),
+    ),
+  ).size;
+
+  const columns = [
+    {
+      title: "Характеристика уязвимости",
+      dataIndex: "title",
+      key: "title",
+      width: 300,
+      render: (value, record) => (
+        <Space direction="vertical" size={4}>
+          <Button
+            type="link"
+            style={{
+              padding: 0,
+              height: "auto",
+              whiteSpace: "normal",
+              textAlign: "left",
+            }}
+            onClick={() => setSelectedRecommendation(record)}
+          >
+            {value}
+          </Button>
+          <Space size={[4, 4]} wrap>
+            <div
+              style={{
+                color: "grey",
+                fontSize: "0.7rem",
+              }}
+            >
+              {record.category}
+            </div>
+          </Space>
+        </Space>
+      ),
+    },
+    {
+      title: "Возможная угроза",
+      dataIndex: "threat",
+      key: "threat",
+      responsive: ["md"],
+    },
+    {
+      title: "Методы обнаружения",
+      dataIndex: "detection",
+      key: "detection",
+      render: (items) => tagList(items, "geekblue"),
+    },
+    {
+      title: "Основные меры защиты",
+      dataIndex: "protection",
+      key: "protection",
+      responsive: ["lg"],
+      render: (items) => tagList(items, "purple"),
+    },
+    {
+      title: "Место внедрения в CI/CD или процесс разработки",
+      dataIndex: "stage",
+      key: "stage",
+      responsive: ["lg"],
+      render: (items) => tagList(items, "green"),
+    },
+    {
+      title: "Ссылки на определения и инструменты",
+      key: "links",
+      width: 190,
+      render: (_, record) => linkList([...record.definitions, ...record.tools]),
+    },
+  ];
+
+  return (
+    <Flex vertical gap={16}>
+      <Card>
+        <Flex vertical gap={16}>
+          <Flex align="start" justify="space-between" gap={16} wrap="wrap">
+            <div>
+              <Title level={2} style={{ marginTop: 0, marginBottom: 8 }}>
+                Навигатор рекомендаций по защите
+              </Title>
+            </div>
+            <Space size={12} wrap>
+              <Statistic
+                title="Найдено"
+                value={filteredRecommendations.length}
+              />
+              <Statistic title="Инструментов" value={toolCount} />
+            </Space>
+          </Flex>
+
+          <div>
+            <Text strong>Пресеты под типовые ситуации</Text>
+            <div style={{ marginTop: 8 }}>
+              <Segmented
+                options={Object.keys(scenarioPresets)}
+                defaultValue="Все"
+                onChange={applyScenario}
+              />
+            </div>
+          </div>
+
+          <Row gutter={[12, 12]}>
+            <Col xs={24} lg={8}>
+              <Flex vertical gap={6}>
+                <Text strong>Поиск</Text>
+                <Input.Search
+                  allowClear
+                  placeholder="XSS, SBOM, DAST, cookies..."
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </Flex>
+            </Col>
+            <Col xs={24} lg={5}>
+              <Flex vertical gap={6}>
+                <Text strong>Категория</Text>
+                <Select
+                  mode="multiple"
+                  allowClear
+                  placeholder="Все категории"
+                  value={categories}
+                  onChange={setCategories}
+                  options={categoryOptions.map((value) => ({
+                    value,
+                    label: value,
+                  }))}
+                  style={{ width: "100%" }}
+                />
+              </Flex>
+            </Col>
+            <Col xs={24} lg={5}>
+              <Flex vertical gap={6}>
+                <Text strong>Методы обнаружения</Text>
+                <Select
+                  mode="multiple"
+                  allowClear
+                  placeholder="Все методы"
+                  value={detections}
+                  onChange={setDetections}
+                  options={detectionOptions.map((value) => ({
+                    value,
+                    label: value,
+                  }))}
+                  style={{ width: "100%" }}
+                />
+              </Flex>
+            </Col>
+            <Col xs={24} lg={6}>
+              <Flex vertical gap={6}>
+                <Text strong>
+                  Место внедрения в CI/CD или процесс разработки
+                </Text>
+                <Select
+                  mode="multiple"
+                  allowClear
+                  placeholder="Все этапы"
+                  value={stages}
+                  onChange={setStages}
+                  options={stageOptions.map((value) => ({
+                    value,
+                    label: value,
+                  }))}
+                  style={{ width: "100%" }}
+                />
+              </Flex>
+            </Col>
+          </Row>
+        </Flex>
+      </Card>
+
+      <Table
+        rowKey="key"
+        columns={columns}
+        dataSource={filteredRecommendations}
+        pagination={false}
+        locale={{
+          emptyText: (
+            <Empty description="Под такие фильтры рекомендаций не найдено" />
+          ),
+        }}
+        scroll={{ x: 1500 }}
+      />
+
+      <Drawer
+        title={selectedRecommendation?.title}
+        width={620}
+        open={Boolean(selectedRecommendation)}
+        onClose={() => setSelectedRecommendation(null)}
+      >
+        {selectedRecommendation && (
+          <Flex vertical gap={16}>
+            <Descriptions column={1} size="small" bordered>
+              <Descriptions.Item label="Категория">
+                {selectedRecommendation.category}
+              </Descriptions.Item>
+              <Descriptions.Item label="Возможная угроза">
+                {selectedRecommendation.threat}
+              </Descriptions.Item>
+            </Descriptions>
+
+            <div>
+              <Text strong>Методы обнаружения</Text>
+              <div style={{ marginTop: 8 }}>
+                {tagList(selectedRecommendation.detection, "geekblue")}
+              </div>
+            </div>
+
+            <div>
+              <Text strong>Основные меры защиты</Text>
+              <Checkbox.Group
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                  marginTop: 8,
+                }}
+                options={selectedRecommendation.protection.map((item) => ({
+                  label: item,
+                  value: item,
+                }))}
+              />
+            </div>
+
+            <div>
+              <Text strong>Место внедрения в CI/CD или процесс разработки</Text>
+              <div style={{ marginTop: 8 }}>
+                {tagList(selectedRecommendation.stage, "green")}
+              </div>
+            </div>
+
+            <Divider style={{ margin: "4px 0" }} />
+
+            <div>
+              <Text strong>Определения и методики</Text>
+              <div style={{ marginTop: 8 }}>
+                {linkList(selectedRecommendation.definitions)}
+              </div>
+            </div>
+
+            <div>
+              <Text strong>Инструменты</Text>
+              <div style={{ marginTop: 8 }}>
+                {linkList(selectedRecommendation.tools)}
+              </div>
+            </div>
+          </Flex>
+        )}
+      </Drawer>
+    </Flex>
+  );
+};
 
 // Batch component
 const BatchScans = () => {
@@ -278,7 +978,11 @@ const BatchScans = () => {
 
   return (
     <div>
-      <Card title="Массовые прогоны сканирования" style={{ marginBottom: 16 }}>
+      <Card
+        title="Массовые прогоны сканирования"
+        style={{ marginBottom: 16 }}
+        extra={<Button onClick={pingBackend}>Пинг бэкенда</Button>}
+      >
         <Form
           form={batchForm}
           layout="vertical"
@@ -612,6 +1316,18 @@ const BatchScans = () => {
 };
 
 const App = () => {
+  const [route, setRoute] = useState(getCurrentRoute);
+
+  useEffect(() => {
+    const handlePopState = () => setRoute(getCurrentRoute());
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const currentPage =
+    route === routes.recommendations ? <RecommendationsPage /> : <BatchScans />;
+
   return (
     <Flex
       vertical
@@ -620,13 +1336,40 @@ const App = () => {
       }}
     >
       <Flex align="start" justify="space-between">
-        <Title>VKR Web Security Scanner</Title>
-        <Button type="primary" onClick={pingBackend}>
-          Пинг бэкенда
-        </Button>
+        <Title>ВКР методы защиты веб-приложений</Title>
+        <Space wrap justify="flex-end">
+          <Button
+            size="large"
+            type={route === routes.scanner ? "link" : "text"}
+            style={{
+              borderRadius: 0,
+              padding: 0,
+              margin: "0 15px",
+              borderBottom:
+                route === routes.scanner ? "1px solid blue" : "none",
+            }}
+            onClick={() => navigateTo(routes.scanner)}
+          >
+            {`Сканирование`.toLocaleUpperCase()}
+          </Button>
+          <Button
+            size="large"
+            type={route === routes.recommendations ? "link" : "text"}
+            style={{
+              borderRadius: 0,
+              padding: 0,
+              margin: "0 15px",
+              borderBottom:
+                route === routes.recommendations ? "1px solid blue" : "none",
+            }}
+            onClick={() => navigateTo(routes.recommendations)}
+          >
+            {`Рекомендации`.toUpperCase()}
+          </Button>
+        </Space>
       </Flex>
 
-      <BatchScans />
+      {currentPage}
     </Flex>
   );
 };
